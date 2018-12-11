@@ -17,7 +17,7 @@ void setup() {
   DS3231_init(DS3231_CONTROL_INTCN);
   memset(recv, 0, BUFF_MAX);
   Serial.println("Get time");
-  parse_cmd("T352715108102018",16);//T352312108102018 -> ssmmhh(dayofweak)ddmmyyyy
+  parse_cmd("T003620211122018",16);//T352312108102018 -> ssmmhh(dayofweak)ddmmyyyy
 }
 
 void loop() {
