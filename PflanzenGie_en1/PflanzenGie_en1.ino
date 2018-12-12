@@ -7,20 +7,9 @@
 
 #include <Wire.h>
 #include "ds3231.h"
-#include "rtc.h"
+//#include "WateringManager.h"
 
 #define BUFF_MAX 256
-
-uint8_t sleep_period_1 = 1;       // the sleep interval in minutes between 2 consecutivealarms
-
-//----wie lange relays angesteuert werden
-int t_rel_1 = 5*1000;
-int t_rel_2 = 5*1000;
-int t_rel_3 = 5*1000;
-int t_rel_4 = 5*1000;
-
-// how often to refresh the info on stdout (ms)
-unsigned long prev = 5000, interval = 5000;
 
 //---reley inputs-----:
 #define REL_IN1 2
@@ -28,32 +17,98 @@ unsigned long prev = 5000, interval = 5000;
 #define REL_IN3 4
 #define REL_IN4 5
 
+class WateringManager{
+  private:
 
-//                      mo  di  mi  do  fr  sa  so
-bool wateringDays[] = { 0 , 1 , 1 , 0 , 0 , 0 , 0 };
-short h = 21;
-short m = 51;
-int waterduration = 5;
-short* waterDays=NULL;
-short amound_dayToWater=0;
+    short h;
+    short m;
+    short waterduration;
+    short* waterDays=NULL;
+    short amound_daysToWater;
+    short outPin;
+    
+    
+  public:
+    WateringManager(bool mon,bool tue,bool wed,bool thu,bool fri,bool sat,bool sun,short hour, short mins,short water_duration,short rel_index)
+    {
+      // -------generat array "waterDays", that containes all weak days where we have to water:
+      bool wateringDays[] = { mon , tue , wed , thu , fri , sat , sun };
+      amound_daysToWater=0;
+      for(int i =0;i<7;i++)
+      {
+        if(wateringDays[i])
+          amound_daysToWater++;
+      }
+      
+      waterDays = new short[amound_daysToWater];
+      int j=0;
+      for(int i =0;i<7;i++){
+        if(wateringDays[i]){
+           waterDays[j]=i+1;
+           j++;
+        }
+      }
+
+      waterduration = water_duration;
+      this->h=hour;
+      this->m=mins;
+
+      switch(rel_index)
+      {
+        case 1:
+          outPin=2;
+          break;
+
+        case 2:
+          outPin=3;
+          break;
+        case 3:
+          outPin=4;
+          break;
+
+        case 4:
+          outPin=5;
+          break;
+          
+        default:
+          outPin=2;
+      }
+      digitalWrite(outPin,HIGH);
+    };
+
+    void watering_if_necessary(short t_wday, short t_hour, short t_min)
+    {
+      bool today_is_water_day = false;
+      for(int i=0;i<amound_daysToWater;i++)
+      {
+        if(waterDays[i] == t_wday)
+        {
+            today_is_water_day=true;
+            Serial.println("heute is gieß tag");
+            break;
+        }
+      }
+
+      if(today_is_water_day && (t_hour == h ) && (t_min == m ))
+      {
+        digitalWrite(outPin,LOW);
+        (waterduration*1000);
+        digitalWrite(outPin,HIGH);
+        Serial.println("Hab gegossen, lege mich 61 sekunden schlafen");
+        for(int i=0;i<11;i++)
+            delay(1000*10);
+      }
+      else
+        Serial.println("jetzt nicht gießen");
+    }
+};
+
+//                                            mo  di  mi  do  fr  sa  so  h   m   dur   relNr
+WateringManager* plant1 = new WateringManager(0,  0,  0,  0,  0,  0,  0,  13, 50, 3,    1);
 
 void setup()
 {
     
-    for(int i =0;i<7;i++){
-      if(wateringDays[i])
-        amound_dayToWater++;
-    }
-    waterDays = new short[amound_dayToWater];
-    int j=0;
-    for(int i =0;i<7;i++){
-      if(wateringDays[i]){
-          waterDays[j]=i+1;
-          j++;
-      }
-    }
-
-  
     Serial.begin(9600);
     Wire.begin();
     DS3231_init(DS3231_CONTROL_INTCN);
@@ -77,7 +132,6 @@ void setup()
 void loop()
 {
     char buff[BUFF_MAX];
-    //unsigned long now = millis();
     struct ts t;
     delay(1000);
 
@@ -87,22 +141,6 @@ void loop()
     snprintf(buff, BUFF_MAX, "date: %d.%02d.%02d time: %02d:%02d:%02d  day: %02d", t.year, t.mon, t.mday, t.hour, t.min, t.sec, t.wday);
     Serial.println(buff);
 
-    bool today_is_water_day = false;
-    for(int i=0;i<amound_dayToWater;i++){
-        if(waterDays[i] == t.wday){
-            today_is_water_day=true;
-            Serial.println("heute is gieß tag");
-            break;
-        }
-    }
-
-    if(today_is_water_day && (t.hour == h ) && (t.min == m )){
-      
-      digitalWrite(REL_IN1,LOW);
-      delay(waterduration*1000);
-      digitalWrite(REL_IN1,HIGH);
-      Serial.println("Hab gegossen, lege mich 61 sekunden schlafen");
-      for(int i=0;i<11;i++)
-          delay(1000*10);
-    }
+    plant1->watering_if_necessary(t.wday,t.hour,t.min);
+    
 }
