@@ -92,9 +92,9 @@ class WateringManager{
       if(today_is_water_day && (t_hour == h ) && (t_min == m ))
       {
         digitalWrite(outPin,LOW);
-        (waterduration*1000);
+        delay(waterduration*1000);
         digitalWrite(outPin,HIGH);
-        Serial.println("Hab gegossen, lege mich 61 sekunden schlafen");
+        Serial.println("Hab gegossen, lege mich 70 sekunden schlafen");
         for(int i=0;i<11;i++)
             delay(1000*10);
       }
@@ -104,7 +104,8 @@ class WateringManager{
 };
 
 //                                            mo  di  mi  do  fr  sa  so  h   m   dur   relNr
-WateringManager* plant1 = new WateringManager(0,  0,  0,  0,  0,  0,  0,  13, 50, 3,    1);
+WateringManager* plant1 = new WateringManager(0,  0,  1,  0,  1,  0,  1,  20, 30,  1,    1);
+// wasserdurchsatz: pro sekunde pumpen ca 50ml wasser. grob!(12V netzteil, starke pumpe)
 
 void setup()
 {
@@ -133,12 +134,12 @@ void loop()
 {
     char buff[BUFF_MAX];
     struct ts t;
-    delay(1000);
+    delay(1000*5);
 
     DS3231_get(&t);
 
     // display current time
-    snprintf(buff, BUFF_MAX, "date: %d.%02d.%02d time: %02d:%02d:%02d  day: %02d", t.year, t.mon, t.mday, t.hour, t.min, t.sec, t.wday);
+    snprintf(buff, BUFF_MAX, "date: %d.%02d.%02d time: %02d:%02d:%02d  day: %02d", t.mday, t.mon, t.year, t.hour, t.min, t.sec, t.wday);
     Serial.println(buff);
 
     plant1->watering_if_necessary(t.wday,t.hour,t.min);
